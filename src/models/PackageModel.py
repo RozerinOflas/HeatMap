@@ -113,8 +113,8 @@ class HeatMapId(Config):
         title = "Heat Map Id"
 class HeatMapTypeIdGeneral(Config):
     name: Literal["Id_General"]="Id_General"
-    HeatMapId: HeatMapId
-    HeatMapGeneral: HeatMapGeneral
+    heatMapId: HeatMapId
+    heatMapGeneral: HeatMapGeneral
     value: Literal["Id_General"] ="Id_General"
     type: Literal["string"] = "string"
     field: Literal["option"] = "option"
@@ -139,9 +139,9 @@ class HeatMapType(Config):
 class HeatMapExecutorInputs(Inputs):
     inputImage: InputImage
 class HeatMapExecutorConfigs(Configs):
-    heatMapType: HeatMapType
     heatMapTime: HeatMapTime
     frameTime: FrameTime
+    heatMapType: HeatMapType
     referencePoint: ReferencePoint
 
 
