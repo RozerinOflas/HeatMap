@@ -52,23 +52,22 @@ class OutputImageGeneral(Output):
 
 class ReferencePoint1(Config):
     name: Literal["ReferencePoint1"] = "ReferencePoint1"
-    value: Literal[False] = False
-    type: Literal["bool"] = "bool"
+    value: Literal["ReferencePoint1"] = "ReferencePoint1"
+    type: Literal["string"] = "string"
     field: Literal["option"] = "option"
     class Config:
         title = "ReferencePoint1"
-
 class ReferencePoint2(Config):
     name: Literal["ReferencePoint2"] = "ReferencePoint2"
-    value: Literal[True] = True
-    type: Literal["bool"] = "bool"
+    value: Literal["ReferencePoint2"] = "ReferencePoint2"
+    type: Literal["string"] = "string"
     field: Literal["option"] = "option"
     class Config:
         title = "ReferencePoint2"
 
 class ReferencePoint(Config):
     """
-        Rotate image without catting off sides.
+        Reference point
     """
     name: Literal["ReferencePoint"] = "ReferencePoint"
     value: Union[ReferencePoint1, ReferencePoint2]
@@ -134,7 +133,6 @@ class HeatMapExecutor(Config):
             }
         }
 
-
 class ConfigExecutor(Config):
     name: Literal["ConfigExecutor"] = "ConfigExecutor"
     value: Union[HeatMapExecutor]
@@ -146,7 +144,6 @@ class ConfigExecutor(Config):
         json_schema_extra = {
             "target": "value"
         }
-
 
 class PackageConfigs(Configs):
     executor: ConfigExecutor
