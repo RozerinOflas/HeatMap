@@ -77,7 +77,6 @@ class ReferencePoint(Config):
 
 class HeatMapTime(Config):
     """
-        Positive angles specify counterclockwise rotation while negative angles indicate clockwise rotation.
     """
     name: Literal["HeatMapTime"] = "HeatMapTime"
     value: int = Field(ge=-359.0, le=359.0,default=0)
@@ -88,7 +87,6 @@ class HeatMapTime(Config):
         title = "HeatMapTime"
 class FrameTime(Config):
     """
-        Positive angles specify counterclockwise rotation while negative angles indicate clockwise rotation.
     """
     name: Literal["FrameTime"] = "FrameTime"
     value: int = Field(ge=-359.0, le=359.0,default=0)
@@ -105,14 +103,26 @@ class HeatMapGeneral(Config):
     type: Literal["string"] = "string"
     field: Literal["option"] = "option"
     class Config:
-        title = "HeatMapGeneral"
+        title = "Heat Map General"
 class HeatMapId(Config):
     name: Literal["HeatMapId"] = "HeatMapId"
     value: Literal["HeatMapId"] = "HeatMapId"
     type: Literal["string"] = "string"
     field: Literal["option"] = "option"
     class Config:
-        title = "HeatMapId"
+        title = "Heat Map Id"
+class HeatMapTypeIdGeneral(Config):
+    name: Literal["Id_General"]="Id_General"
+    HeatMapId: HeatMapId
+    HeatMapGeneral: HeatMapGeneral
+    value: Literal["Id_General"] ="Id_General"
+    type: Literal["string"] = "string"
+    field: Literal["option"] = "option"
+
+    class Config:
+        title = "Id - General"
+
+
 class HeatMapType(Config):
     """
     id or general
@@ -123,7 +133,7 @@ class HeatMapType(Config):
     field: Literal["dependentDropdownlist"] = "dependentDropdownlist"
 
     class Config:
-        title = "Type"
+        title = "Heat Map Type"
 
 
 class HeatMapExecutorInputs(Inputs):
