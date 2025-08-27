@@ -18,8 +18,8 @@ class InputImage(Input):
 
     class Config:
         title = "Image"
-class OutputImageId(Output):
-    name: Literal["outputImage"] = "outputImage"
+class OutputImageFrame(Output):
+    name: Literal["outputFrame"] = "outputFrame"
     value: Union[List[Image],Image]
     type: str = "object"
 
@@ -98,12 +98,43 @@ class FrameTime(Config):
     class Config:
         title = "FrameTime"
 
+
+class HeatMapGeneral(Config):
+    name: Literal["HeatMapGeneral"] = "HeatMapGeneral"
+    value: Literal["HeatMapGeneral"] = "HeatMapGeneral"
+    type: Literal["string"] = "string"
+    field: Literal["option"] = "option"
+    class Config:
+        title = "HeatMapGeneral"
+class HeatMapId(Config):
+    name: Literal["HeatMapId"] = "HeatMapId"
+    value: Literal["HeatMapId"] = "HeatMapId"
+    type: Literal["string"] = "string"
+    field: Literal["option"] = "option"
+    class Config:
+        title = "HeatMapId"
+class HeatMapType(Config):
+    """
+    id or general
+    """
+    name: Literal["configType"] = "configType"
+    value:Union[HeatMapId,HeatMapGeneral]
+    type: Literal["object"] = "object"
+    field: Literal["dependentDropdownlist"] = "dependentDropdownlist"
+
+    class Config:
+        title = "Type"
+
+
 class HeatMapExecutorInputs(Inputs):
     inputImage: InputImage
 class HeatMapExecutorConfigs(Configs):
+    heatMapType: HeatMapType
     heatMapTime: HeatMapTime
     frameTime: FrameTime
     referencePoint: ReferencePoint
+
+
 class HeatMapExecutorRequest(Request):
     inputs: Optional[HeatMapExecutorInputs]
     configs: HeatMapExecutorConfigs
@@ -113,7 +144,7 @@ class HeatMapExecutorRequest(Request):
             "target": "configs"
         }
 class HeatMapExecutorOutputs(Outputs):
-    outputImageId: OutputImageId
+    outputImageFrame: OutputImageFrame
     outputImageGeneral : OutputImageGeneral
 class HeatMapExecutorResponse(Response):
     outputs: HeatMapExecutorOutputs
