@@ -64,7 +64,6 @@ class ReferencePoint2(Config):
     field: Literal["option"] = "option"
     class Config:
         title = "ReferencePoint2"
-
 class ReferencePoint(Config):
     """
         Reference point
@@ -91,13 +90,13 @@ class FrameTime(Config):
     """
         Positive angles specify counterclockwise rotation while negative angles indicate clockwise rotation.
     """
-    name: Literal["HeatMapTime"] = "HeatMapTime"
+    name: Literal["FrameTime"] = "FrameTime"
     value: int = Field(ge=-359.0, le=359.0,default=0)
     type: Literal["number"] = "number"
     field: Literal["textInput"] = "textInput"
 
     class Config:
-        title = "HeatMapTime"
+        title = "FrameTime"
 
 class HeatMapExecutorInputs(Inputs):
     inputImage: InputImage
