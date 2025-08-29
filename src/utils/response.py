@@ -1,6 +1,6 @@
 
 from sdks.novavision.src.helper.package import PackageHelper
-from components.Package.src.models.PackageModel import PackageModel, PackageConfigs, ConfigExecutor, GeneralExecutor ,GeneralExecutorOutputs, GeneralExecutorResponse, IdExecutor ,IdExecutorOutputs, IdExecutorResponse, PackageExecutor, OutputImage
+from components.HeatMap.src.models.PackageModel import PackageModel, PackageConfigs, ConfigExecutor, GeneralExecutor ,GeneralExecutorOutputs, GeneralExecutorResponse, IdExecutor ,IdExecutorOutputs, IdExecutorResponse, PackageExecutor, OutputImage
 
 
 def build_responseGeneral(context):
@@ -8,7 +8,7 @@ def build_responseGeneral(context):
     generalExecutorOutputs = GeneralExecutorOutputs(outputImage=outputImage)
     generalExecutorResponse = GeneralExecutorResponse(outputs=generalExecutorOutputs)
     generalExecutorExecutor = GeneralExecutor(value=GeneralExecutorResponse)
-    executor = ConfigExecutor(value=generalExecutorExecutor)
+    executor = ConfigExecutor(value=generalExecutor)
     packageConfigs = PackageConfigs(executor=executor)
     package = PackageHelper(packageModel=PackageModel, packageConfigs=packageConfigs)
     packageModel = package.build_model(context)
@@ -19,7 +19,7 @@ def build_responseId(context):
     idExecutorOutputs = IdExecutorOutputs(outputImage=outputImage)
     idExecutorResponse = IdExecutorResponse(outputs=idExecutorOutputs)
     idExecutorExecutor = IdExecutor(value=idExecutorResponse)
-    executor = ConfigExecutor(value=idExecutorExecutor)
+    executor = ConfigExecutor(value=idExecutor)
     packageConfigs = PackageConfigs(executor=executor)
     package = PackageHelper(packageModel=PackageModel, packageConfigs=packageConfigs)
     packageModel = package.build_model(context)

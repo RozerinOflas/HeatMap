@@ -65,17 +65,17 @@ class HeatMapTime(Config):
     """
     """
     name: Literal["HeatMapTime"] = "HeatMapTime"
-    value: int = Field(ge=-359.0, le=359.0,default=0)
+    value: int = Field(default=0)
     type: Literal["number"] = "number"
     field: Literal["textInput"] = "textInput"
-
     class Config:
         title = "HeatMapTime"
+
 class FrameTime(Config):
     """
     """
     name: Literal["FrameTime"] = "FrameTime"
-    value: int = Field(ge=-359.0, le=359.0,default=0)
+    value: int = Field(default=0)
     type: Literal["number"] = "number"
     field: Literal["textInput"] = "textInput"
 
@@ -111,7 +111,7 @@ class IdExecutor(Config):
     field: Literal["option"] = "option"
 
     class Config:
-        title = "Package"
+        title = "IdExecutor"
         json_schema_extra = {
             "target": {
                 "value": 0
@@ -144,7 +144,7 @@ class GeneralExecutor(Config):
     field: Literal["option"] = "option"
 
     class Config:
-        title = "Package"
+        title = "GeneralExecutor"
         json_schema_extra = {
             "target": {
                 "value": 0
@@ -156,9 +156,10 @@ class ConfigExecutor(Config):
     value: Union[GeneralExecutor, IdExecutor]
     type: Literal["executor"] = "executor"
     field: Literal["dependentDropdownlist"] = "dependentDropdownlist"
-
+    restart: Literal[True] = True
     class Config:
-        title = "Task"
+        title = "HeatMapType"
+
 class PackageConfigs(Configs):
     executor: ConfigExecutor
 class PackageModel(Package):
