@@ -1,14 +1,25 @@
 
 from sdks.novavision.src.helper.package import PackageHelper
-from components.Package.src.models.PackageModel import PackageModel, PackageConfigs, ConfigExecutor, PackageOutputs, PackageResponse, PackageExecutor, OutputImage
+from components.Package.src.models.PackageModel import PackageModel, PackageConfigs, ConfigExecutor, GeneralExecutor ,GeneralExecutorOutputs, GeneralExecutorResponse, IdExecutor ,IdExecutorOutputs, IdExecutorResponse, PackageExecutor, OutputImage
 
 
-def build_response(context):
+def build_responseGeneral(context):
     outputImage = OutputImage(value=context.image)
-    Outputs = PackageOutputs(outputImage=outputImage)
-    packageResponse = PackageResponse(outputs=Outputs)
-    packageExecutor = PackageExecutor(value=packageResponse)
-    executor = ConfigExecutor(value=packageExecutor)
+    generalExecutorOutputs = GeneralExecutorOutputs(outputImage=outputImage)
+    generalExecutorResponse = GeneralExecutorResponse(outputs=generalExecutorOutputs)
+    generalExecutorExecutor = GeneralExecutor(value=GeneralExecutorResponse)
+    executor = ConfigExecutor(value=generalExecutorExecutor)
+    packageConfigs = PackageConfigs(executor=executor)
+    package = PackageHelper(packageModel=PackageModel, packageConfigs=packageConfigs)
+    packageModel = package.build_model(context)
+    return packageModel
+
+def build_responseId(context):
+    outputImage = OutputImage(value=context.image)
+    idExecutorOutputs = IdExecutorOutputs(outputImage=outputImage)
+    idExecutorResponse = IdExecutorResponse(outputs=idExecutorOutputs)
+    idExecutorExecutor = IdExecutor(value=idExecutorResponse)
+    executor = ConfigExecutor(value=idExecutorExecutor)
     packageConfigs = PackageConfigs(executor=executor)
     package = PackageHelper(packageModel=PackageModel, packageConfigs=packageConfigs)
     packageModel = package.build_model(context)

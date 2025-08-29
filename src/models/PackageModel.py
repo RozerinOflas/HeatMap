@@ -18,22 +18,8 @@ class InputImage(Input):
 
     class Config:
         title = "Image"
-class OutputImageFrame(Output):
-    name: Literal["outputFrame"] = "outputFrame"
-    value: Union[List[Image],Image]
-    type: str = "object"
 
-    @validator("type", pre=True, always=True)
-    def set_type_based_on_value(cls, value, values):
-        value = values.get('value')
-        if isinstance(value, Image):
-            return "object"
-        elif isinstance(value, list):
-            return "list"
-
-    class Config:
-        title = "Image"
-class OutputImageGeneral(Output):
+class OutputImage(Output):
     name: Literal["outputImage"] = "outputImage"
     value: Union[List[Image],Image]
     type: str = "object"
@@ -97,71 +83,63 @@ class FrameTime(Config):
         title = "FrameTime"
 
 
-class HeatMapGeneral(Config):
-    name: Literal["HeatMapGeneral"] = "HeatMapGeneral"
-    value: Literal["HeatMapGeneral"] = "HeatMapGeneral"
-    type: Literal["string"] = "string"
-    field: Literal["option"] = "option"
-    class Config:
-        title = "Heat Map General"
-class HeatMapId(Config):
-    name: Literal["HeatMapId"] = "HeatMapId"
-    value: Literal["HeatMapId"] = "HeatMapId"
-    type: Literal["string"] = "string"
-    field: Literal["option"] = "option"
-    class Config:
-        title = "Heat Map Id"
-class HeatMapTypeIdGeneral(Config):
-    name: Literal["Id_General"]="Id_General"
-    heatMapId: HeatMapId
-    heatMapGeneral: HeatMapGeneral
-    value: Literal["Id_General"] ="Id_General"
-    type: Literal["string"] = "string"
-    field: Literal["option"] = "option"
-
-    class Config:
-        title = "Id - General"
 
 
-class HeatMapType(Config):
-    """
-    id or general
-    """
-    name: Literal["configType"] = "configType"
-    value:Union[HeatMapId,HeatMapGeneral]
-    type: Literal["object"] = "object"
-    field: Literal["dependentDropdownlist"] = "dependentDropdownlist"
 
-    class Config:
-        title = "Heat Map Type"
-
-
-class HeatMapExecutorInputs(Inputs):
+class IdExecutorInputs(Inputs):
     inputImage: InputImage
-class HeatMapExecutorConfigs(Configs):
+class IdExecutorConfigs(Configs):
     heatMapTime: HeatMapTime
     frameTime: FrameTime
-    heatMapType: HeatMapType
     referencePoint: ReferencePoint
-
-
-class HeatMapExecutorRequest(Request):
-    inputs: Optional[HeatMapExecutorInputs]
-    configs: HeatMapExecutorConfigs
+class IdExecutorRequest(Request):
+    inputs: Optional[IdExecutorInputs]
+    configs: IdExecutorConfigs
 
     class Config:
         json_schema_extra = {
             "target": "configs"
         }
-class HeatMapExecutorOutputs(Outputs):
-    outputImageFrame: OutputImageFrame
-    outputImageGeneral : OutputImageGeneral
-class HeatMapExecutorResponse(Response):
-    outputs: HeatMapExecutorOutputs
+class GeneralExecutorOutputs(Outputs):
+    outputImage: OutputImage
+class IdExecutorResponse(Response):
+    outputs: IdExecutorOutputs
+class IdExecutor(Config):
+    name: Literal["IdExecutor"] = "IdExecutor"
+    value: Union[IdExecutorRequest, IdExecutorResponse]
+    type: Literal["object"] = "object"
+    field: Literal["option"] = "option"
 
-class HeatMapExecutor(Config):
-    name: Literal["HeatMapExecutor"] = "HeatMapExecutor"
-    value: Union[HeatMapExecutorRequest, HeatMapExecutorResponse]
+    class Config:
+        title = "Package"
+        json_schema_extra = {
+            "target": {
+                "value": 0
+            }
+        }
+
+
+class GeneralExecutorInputs(Inputs):
+    inputImage: InputImage
+class GeneralExecutorConfigs(Configs):
+    heatMapTime: HeatMapTime
+    frameTime: FrameTime
+    referencePoint: ReferencePoint
+class GeneralExecutorRequest(Request):
+    inputs: Optional[GeneralExecutorInputs]
+    configs: GeneralExecutorConfigs
+
+    class Config:
+        json_schema_extra = {
+            "target": "configs"
+        }
+class GeneralExecutorOutputs(Outputs):
+    outputImage: OutputImage
+class GeneralExecutorResponse(Response):
+    outputs: GeneralExecutorOutputs
+class GeneralExecutor(Config):
+    name: Literal["GeneralExecutor"] = "GeneralExecutor"
+    value: Union[GeneralExecutorRequest, GeneralExecutorResponse]
     type: Literal["object"] = "object"
     field: Literal["option"] = "option"
 
@@ -175,16 +153,12 @@ class HeatMapExecutor(Config):
 
 class ConfigExecutor(Config):
     name: Literal["ConfigExecutor"] = "ConfigExecutor"
-    value: Union[HeatMapExecutor]
+    value: Union[GeneralExecutor, IdExecutor]
     type: Literal["executor"] = "executor"
     field: Literal["dependentDropdownlist"] = "dependentDropdownlist"
 
     class Config:
         title = "Task"
-        json_schema_extra = {
-            "target": "value"
-        }
-
 class PackageConfigs(Configs):
     executor: ConfigExecutor
 class PackageModel(Package):
