@@ -100,7 +100,7 @@ class IdExecutorRequest(Request):
         json_schema_extra = {
             "target": "configs"
         }
-class GeneralExecutorOutputs(Outputs):
+class IdExecutorOutputs(Outputs):
     outputImage: OutputImage
 class IdExecutorResponse(Response):
     outputs: IdExecutorOutputs
