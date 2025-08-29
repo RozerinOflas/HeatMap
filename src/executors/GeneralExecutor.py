@@ -1,10 +1,8 @@
-"""
-    It is one of the preprocessing components in which the image is rotated.
-"""
-
 import os
 import cv2
 import sys
+import numpy as np
+import matplotlib.pyplot as plt
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../../'))
 
@@ -15,45 +13,61 @@ from components.HeatMap.src.utils.response import build_responseGeneral
 from components.HeatMap.src.models.PackageModel import PackageModel
 
 
-class GeneralExecutor(Component):
+class HeatMapExecutor(Component):
     def __init__(self, request, bootstrap):
         super().__init__(request, bootstrap)
         self.request.model = PackageModel(**(self.request.data))
-        self.rotation_degree = self.request.get_param("Degree")
-        self.keep_side = self.request.get_param("KeepSide")
         self.image = self.request.get_param("inputImage")
+        self.detections = self.request.get_param("outputDetections")  # object tracking JSON
+        self.bins = self.request.get_param("Bins") or 100  # ısı haritası çözünürlüğü
 
     @staticmethod
     def bootstrap(config: dict) -> dict:
         return {}
 
-    def rotation(self, image):
-        if self.keep_side == True:
-            height, width = image.shape[:2]
-            image_center = (width / 2, height / 2)
-            rotation_arr = cv2.getRotationMatrix2D(image_center, self.rotation_degree, 1)
-            abs_cos = abs(rotation_arr[0, 0])
-            abs_sin = abs(rotation_arr[0, 1])
-            bound_w = int(height * abs_sin + width * abs_cos)
-            bound_h = int(height * abs_cos + width * abs_sin)
-            rotation_arr[0, 2] += bound_w / 2 - image_center[0]
-            rotation_arr[1, 2] += bound_h / 2 - image_center[1]
-            img_rotation = cv2.warpAffine(image, rotation_arr, (bound_w, bound_h))
+    def extract_points(self):
+        """Bounding box merkezlerini alır"""
+        points = []
+        for det in self.detections:
+            bbox = det["boundingBox"]
+            x_center = bbox["left"] + bbox["width"] / 2
+            y_center = bbox["top"] + bbox["height"] / 2
+            points.append([x_center, y_center])
+        return np.array(points)
 
-            return img_rotation
+    def generate_heatmap(self, points, img_shape):
+        """2D histogram tabanlı heatmap oluşturur"""
+        if len(points) == 0:
+            return np.zeros((img_shape[0], img_shape[1]))
 
-        elif self.keep_side == False:
-            height, width = image.shape[:2]
-            rotation_arr = cv2.getRotationMatrix2D((height / 2, width / 2), self.rotation_degree, 1)
-            img_rotation = cv2.warpAffine(image, rotation_arr, (height, width))
+        heatmap, xedges, yedges = np.histogram2d(
+            points[:,1],  # y koordinatı (row)
+            points[:,0],  # x koordinatı (col)
+            bins=self.bins,
+            range=[[0, img_shape[0]], [0, img_shape[1]]]
+        )
 
-            return img_rotation
+        # Gaussian Blur ile pürüzsüzleştirme
+        heatmap = cv2.GaussianBlur(heatmap, (15, 15), 0)
+
+        # Normalize et
+        heatmap = (heatmap / np.max(heatmap) * 255).astype(np.uint8)
+        return heatmap
+
+    def overlay_heatmap(self, img, heatmap):
+        """Heatmap’i orijinal görüntü üzerine bindirir"""
+        heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+        overlay = cv2.addWeighted(img, 0.6, heatmap_color, 0.4, 0)
+        return overlay
 
     def run(self):
         img = Image.get_frame(img=self.image, redis_db=self.redis_db)
-        img.value = self.rotation(img.value)
+        points = self.extract_points()
+        heatmap = self.generate_heatmap(points, img.value.shape[:2])
+        overlay_img = self.overlay_heatmap(img.value, heatmap)
+        img.value = overlay_img
         self.image = Image.set_frame(img=img, package_uID=self.uID, redis_db=self.redis_db)
-        packageModel = build_response(context=self)
+        packageModel = build_responseGeneral(context=self)
         return packageModel
 
 
