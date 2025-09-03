@@ -32,6 +32,7 @@ class OutputImage(Output):
 
     class Config:
         title = "Image"
+
 """class ReferencePoint1(Config):
     name: Literal["ReferencePoint1"] = "ReferencePoint1"
     value: Literal["ReferencePoint1"] = "ReferencePoint1"
@@ -69,15 +70,14 @@ class HeatMapTime(Config):
     value: int = Field(default=0)
     type: Literal["number"] = "number"
     field: Literal["textInput"] = "textInput"
-
     class Config:
         title = "HeatMapTime"
+
 class FrameTime(Config):
     name: Literal["FrameTime"] = "FrameTime"
     value: int = Field(default=0)
     type: Literal["number"] = "number"
     field: Literal["textInput"] = "textInput"
-
     class Config:
         title = "FrameTime"
 
@@ -90,7 +90,6 @@ class HeatMapExecutorConfigs(Configs):
 class HeatMapExecutorRequest(Request):
     inputs: Optional[HeatMapExecutorInputs]
     configs: HeatMapExecutorConfigs
-
     class Config:
         json_schema_extra = {
             "target": "configs"
@@ -104,10 +103,8 @@ class HeatMapExecutorResponse(Response):
 class HeatMapExecutor(Config):
     name: Literal["HeatMapExecutor"] = "HeatMapExecutor"
     value: Union[HeatMapExecutorRequest, HeatMapExecutorResponse]
-    type: Literal["executor"] = "executor"
+    type: Literal["object"] = "object"
     field: Literal["option"] = "option"
-    restart: Literal[True] = True
-
     class Config:
         title = "HeatMapExecutor"
         json_schema_extra = {
@@ -121,16 +118,15 @@ class ConfigExecutor(Config):
     value: Union[HeatMapExecutor]
     type: Literal["executor"] = "executor"
     field: Literal["dependentDropdownlist"] = "dependentDropdownlist"
-
+    restart: Literal[True] = True
     class Config:
-        title = "Task"
+        title = "Type"
         json_schema_extra = {
             "target": "value"
         }
+
 class PackageConfigs(Configs):
-    executor: HeatMapExecutor
-
-
+    executor: ConfigExecutor
 class PackageModel(Package):
     configs: PackageConfigs
     type: Literal["component"] = "component"
