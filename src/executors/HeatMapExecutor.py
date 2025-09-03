@@ -1,85 +1,110 @@
+"""
+    It is a component in which object detection results are accumulated into a heatmap.
+"""
+
 import os
-import sys
 import cv2
+import sys
 import numpy as np
-from datetime import datetime
+import matplotlib.pyplot as plt
+from ultralytics import YOLO
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../../'))
 
 from sdks.novavision.src.media.image import Image
 from sdks.novavision.src.base.component import Component
 from sdks.novavision.src.helper.executor import Executor
-from components.HeatMap.src.utils.response import build_response
-from components.HeatMap.src.models.PackageModel import PackageModel
+from components.HeatMapExample.src.utils.response import build_response
+from components.HeatMapExample.src.models.PackageModel import PackageModel
 
 
-class HeatMap(Component):
+class HeatmapExecutor(Component):
     def __init__(self, request, bootstrap):
         super().__init__(request, bootstrap)
         self.request.model = PackageModel(**(self.request.data))
-        self.image = self.request.get_param("inputImage")          # Frame
-        self.detections = self.request.get_param("inputDetections")  # ObjectTracking output
-        self.frameTime = float(self.request.get_param("FrameTime")) # Kullanıcıdan gelen saniye aralığı
-        self.decay = float(self.request.get_param("Decay", 0.95))   # Isının yavaşça silinmesi için
+        self.input_video = self.request.get_param("inputVideo")
+        self.draw_boxes = self.request.get_param("DrawBoxes", default=True)
 
-        # Isı haritası buffer
-        if "heatmap" not in self.bootstrap:
-            self.bootstrap["heatmap"] = None
-        if "last_update" not in self.bootstrap:
-            self.bootstrap["last_update"] = datetime.now()
+        # YOLO modelini yükle
+        self.model = YOLO("yolo11m.pt")
 
     @staticmethod
     def bootstrap(config: dict) -> dict:
         return {}
 
-    def update_heatmap(self, frame_shape, points):
-        """ Noktalardan heatmap matrisini günceller """
-        if self.bootstrap["heatmap"] is None:
-            self.bootstrap["heatmap"] = np.zeros((frame_shape[0], frame_shape[1]), dtype=np.float32)
+    def generate_heatmap(self, video_path):
+        cap = cv2.VideoCapture(video_path)
 
-        heatmap = self.bootstrap["heatmap"]
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        # Decay uygula (eski veriler yavaşça silinsin)
-        heatmap *= self.decay
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out_boxes = cv2.VideoWriter("output_with_boxes.mp4", fourcc, fps, (width, height))
+        out_overlay = cv2.VideoWriter("output_overlay.mp4", fourcc, fps, (width, height))
 
-        # Yeni noktaları işaretle
-        for (x, y) in points:
-            if 0 <= y < heatmap.shape[0] and 0 <= x < heatmap.shape[1]:
-                heatmap[int(y), int(x)] += 1.0
+        heatmap_accum = np.zeros((height, width), dtype=np.float32)
+        frames_list = []
 
-        self.bootstrap["heatmap"] = heatmap
-        return heatmap
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-    def apply_heatmap(self, frame, heatmap):
-        """ OpenCV applyColorMap ile ısı haritasını çizer """
-        hm = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
-        hm = hm.astype(np.uint8)
-        hm_color = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
-        blended = cv2.addWeighted(frame, 0.6, hm_color, 0.4, 0)
-        return blended
+            frames_list.append(frame.copy())
+            results = self.model(frame, verbose=False)
+
+            for r in results:
+                boxes = r.boxes.xyxy.cpu().numpy()
+                confs = r.boxes.conf.cpu().numpy()
+                clss = r.boxes.cls.cpu().numpy()
+
+                for box, conf, cls_id in zip(boxes, confs, clss):
+                    x1, y1, x2, y2 = map(int, box)
+                    label = f"{self.model.names[int(cls_id)]} {conf:.2f}"
+
+                    if self.draw_boxes:
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.putText(frame, label, (x1, y1 - 5),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+                    heatmap_accum[y1:y2, x1:x2] += 1
+
+            out_boxes.write(frame)
+
+        cap.release()
+        out_boxes.release()
+
+        # Heatmap kaydet
+        plt.figure(figsize=(10, 8))
+        plt.imshow(heatmap_accum, cmap='hot', alpha=0.8)
+        plt.colorbar()
+        plt.title("Object Detection Heatmap")
+        heatmap_path = "heatmap.png"
+        plt.savefig(heatmap_path)
+        plt.close()
+
+        # Overlay video
+        heatmap_norm = cv2.normalize(heatmap_accum, None, 0, 255, cv2.NORM_MINMAX)
+        heatmap_color = cv2.applyColorMap(heatmap_norm.astype(np.uint8), cv2.COLORMAP_JET)
+
+        for frame in frames_list:
+            overlay = cv2.addWeighted(frame, 0.6, heatmap_color, 0.4, 0)
+            out_overlay.write(overlay)
+
+        out_overlay.release()
+
+        return heatmap_path, "output_with_boxes.mp4", "output_overlay.mp4"
 
     def run(self):
-        img = Image.get_frame(img=self.image, redis_db=self.redis_db)
-        frame = img.value
+        # Videoyu Redis'ten al
+        video = Image.get_frame(img=self.input_video, redis_db=self.redis_db)
 
-        # Detections içinden (x, y) noktalarını çıkar
-        points = []
-        for det in (self.detections or []):
-            bbox = det["boundingBox"]
-            x = int(bbox["left"] + bbox["width"] / 2)
-            y = int(bbox["top"] + bbox["height"] / 2)
-            points.append((x, y))
+        heatmap_path, boxed_video, overlay_video = self.generate_heatmap(video.value)
 
-        # Frame time kontrolü
-        now = datetime.now()
-        if (now - self.bootstrap["last_update"]).total_seconds() >= self.frameTime:
-            heatmap = self.update_heatmap(frame.shape, points)
-            frame = self.apply_heatmap(frame, heatmap)
-            self.bootstrap["last_update"] = now
-
-        # Çıktı olarak görüntüyü güncelle
-        img.value = frame
-        self.image = Image.set_frame(img=img, package_uID=self.uID, redis_db=self.redis_db)
+        # Çıktıyı Redis'e yaz
+        self.heatmap_image = Image.set_frame(img=heatmap_path, package_uID=self.uID, redis_db=self.redis_db)
+        self.overlay_video = Image.set_frame(img=overlay_video, package_uID=self.uID, redis_db=self.redis_db)
 
         packageModel = build_response(context=self)
         return packageModel
