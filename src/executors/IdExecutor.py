@@ -1,58 +1,86 @@
-"""
-    It is one of the preprocessing components in which the image is rotated.
-"""
-
 import os
-import cv2
 import sys
+import cv2
+import numpy as np
+from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../../'))
 
 from sdks.novavision.src.media.image import Image
 from sdks.novavision.src.base.component import Component
 from sdks.novavision.src.helper.executor import Executor
-from components.HeatMap.src.utils.response import build_responseId
+from components.HeatMap.src.utils.response import build_response
 from components.HeatMap.src.models.PackageModel import PackageModel
 
 
-class IdExecutor(Component):
+class HeatMap(Component):
     def __init__(self, request, bootstrap):
         super().__init__(request, bootstrap)
         self.request.model = PackageModel(**(self.request.data))
-        self.rotation_degree = self.request.get_param("Degree")
-        self.keep_side = self.request.get_param("KeepSide")
-        self.image = self.request.get_param("inputImage")
+        self.image = self.request.get_param("inputImage")          # Frame
+        self.detections = self.request.get_param("inputDetections")  # ObjectTracking output
+        self.frameTime = float(self.request.get_param("FrameTime")) # Kullanıcıdan gelen saniye aralığı
+        self.decay = float(self.request.get_param("Decay", 0.95))   # Isının yavaşça silinmesi için
+
+        # Isı haritası buffer
+        if "heatmap" not in self.bootstrap:
+            self.bootstrap["heatmap"] = None
+        if "last_update" not in self.bootstrap:
+            self.bootstrap["last_update"] = datetime.now()
 
     @staticmethod
     def bootstrap(config: dict) -> dict:
         return {}
 
-    def rotation(self, image):
-        if self.keep_side == True:
-            height, width = image.shape[:2]
-            image_center = (width / 2, height / 2)
-            rotation_arr = cv2.getRotationMatrix2D(image_center, self.rotation_degree, 1)
-            abs_cos = abs(rotation_arr[0, 0])
-            abs_sin = abs(rotation_arr[0, 1])
-            bound_w = int(height * abs_sin + width * abs_cos)
-            bound_h = int(height * abs_cos + width * abs_sin)
-            rotation_arr[0, 2] += bound_w / 2 - image_center[0]
-            rotation_arr[1, 2] += bound_h / 2 - image_center[1]
-            img_rotation = cv2.warpAffine(image, rotation_arr, (bound_w, bound_h))
+    def update_heatmap(self, frame_shape, points):
+        """ Noktalardan heatmap matrisini günceller """
+        if self.bootstrap["heatmap"] is None:
+            self.bootstrap["heatmap"] = np.zeros((frame_shape[0], frame_shape[1]), dtype=np.float32)
 
-            return img_rotation
+        heatmap = self.bootstrap["heatmap"]
 
-        elif self.keep_side == False:
-            height, width = image.shape[:2]
-            rotation_arr = cv2.getRotationMatrix2D((height / 2, width / 2), self.rotation_degree, 1)
-            img_rotation = cv2.warpAffine(image, rotation_arr, (height, width))
+        # Decay uygula (eski veriler yavaşça silinsin)
+        heatmap *= self.decay
 
-            return img_rotation
+        # Yeni noktaları işaretle
+        for (x, y) in points:
+            if 0 <= y < heatmap.shape[0] and 0 <= x < heatmap.shape[1]:
+                heatmap[int(y), int(x)] += 1.0
+
+        self.bootstrap["heatmap"] = heatmap
+        return heatmap
+
+    def apply_heatmap(self, frame, heatmap):
+        """ OpenCV applyColorMap ile ısı haritasını çizer """
+        hm = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
+        hm = hm.astype(np.uint8)
+        hm_color = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
+        blended = cv2.addWeighted(frame, 0.6, hm_color, 0.4, 0)
+        return blended
 
     def run(self):
         img = Image.get_frame(img=self.image, redis_db=self.redis_db)
-        img.value = self.rotation(img.value)
+        frame = img.value
+
+        # Detections içinden (x, y) noktalarını çıkar
+        points = []
+        for det in (self.detections or []):
+            bbox = det["boundingBox"]
+            x = int(bbox["left"] + bbox["width"] / 2)
+            y = int(bbox["top"] + bbox["height"] / 2)
+            points.append((x, y))
+
+        # Frame time kontrolü
+        now = datetime.now()
+        if (now - self.bootstrap["last_update"]).total_seconds() >= self.frameTime:
+            heatmap = self.update_heatmap(frame.shape, points)
+            frame = self.apply_heatmap(frame, heatmap)
+            self.bootstrap["last_update"] = now
+
+        # Çıktı olarak görüntüyü güncelle
+        img.value = frame
         self.image = Image.set_frame(img=img, package_uID=self.uID, redis_db=self.redis_db)
+
         packageModel = build_response(context=self)
         return packageModel
 

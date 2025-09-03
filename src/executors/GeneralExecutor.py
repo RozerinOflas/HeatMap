@@ -2,14 +2,14 @@ import os
 import sys
 import cv2
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../../'))
 
 from sdks.novavision.src.media.image import Image
 from sdks.novavision.src.base.component import Component
 from sdks.novavision.src.helper.executor import Executor
-from components.HeatMap.src.utils.response import build_responseGeneral
+from components.HeatMap.src.utils.response import build_response
 from components.HeatMap.src.models.PackageModel import PackageModel
 
 
@@ -17,10 +17,10 @@ class HeatMap(Component):
     def __init__(self, request, bootstrap):
         super().__init__(request, bootstrap)
         self.request.model = PackageModel(**(self.request.data))
-        self.image = self.request.get_param("inputImage")       # Frame
+        self.image = self.request.get_param("inputImage")          # Frame
         self.detections = self.request.get_param("inputDetections")  # ObjectTracking output
         self.frameTime = float(self.request.get_param("FrameTime")) # Kullanıcıdan gelen saniye aralığı
-        self.decay = float(self.request.get_param("Decay", 0.95))    # Isının yavaşça silinmesi için
+        self.decay = float(self.request.get_param("Decay", 0.95))   # Isının yavaşça silinmesi için
 
         # Isı haritası buffer
         if "heatmap" not in self.bootstrap:
@@ -39,7 +39,7 @@ class HeatMap(Component):
 
         heatmap = self.bootstrap["heatmap"]
 
-        # Decay uygulayarak eski veriyi hafiflet
+        # Decay uygula (eski veriler yavaşça silinsin)
         heatmap *= self.decay
 
         # Yeni noktaları işaretle
@@ -62,9 +62,9 @@ class HeatMap(Component):
         img = Image.get_frame(img=self.image, redis_db=self.redis_db)
         frame = img.value
 
-        # Detections içinden (x, y) noktalarını al
+        # Detections içinden (x, y) noktalarını çıkar
         points = []
-        for det in self.detections:
+        for det in (self.detections or []):
             bbox = det["boundingBox"]
             x = int(bbox["left"] + bbox["width"] / 2)
             y = int(bbox["top"] + bbox["height"] / 2)
@@ -77,10 +77,11 @@ class HeatMap(Component):
             frame = self.apply_heatmap(frame, heatmap)
             self.bootstrap["last_update"] = now
 
+        # Çıktı olarak görüntüyü güncelle
         img.value = frame
         self.image = Image.set_frame(img=img, package_uID=self.uID, redis_db=self.redis_db)
 
-        packageModel = build_responseGeneral(context=self)
+        packageModel = build_response(context=self)
         return packageModel
 
 
